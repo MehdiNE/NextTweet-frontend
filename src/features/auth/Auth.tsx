@@ -8,19 +8,11 @@ import { FaGithub, FaHeart } from "react-icons/fa6";
 import { FcGoogle } from "react-icons/fc";
 import CreateAccount from "./CreateAccount";
 import SignIn from "./SignIn";
-import { useMutation, useQuery } from "@tanstack/react-query";
-
-async function logMovies() {
-  const response = await fetch("http://localhost:5000/api/v1/tweets");
-  const movies = await response.json();
-  console.log(movies);
-}
+import { toast } from "react-toastify";
 
 function Auth() {
   const [openCreateAccount, setOpenCreateAccount] = useState<boolean>(false);
   const [openSignIn, setOpenSignIn] = useState<boolean>(false);
-  // Queries
-  const query = useQuery({ queryKey: ["todos"], queryFn: logMovies });
 
   function toggleCreateAccountDialog(open: boolean) {
     setOpenCreateAccount(open);
@@ -48,7 +40,10 @@ function Auth() {
         </div>
 
         <div className="mt-16 flex w-72 flex-col gap-2">
-          <Button variant="outline">
+          <Button
+            onClick={() => toast.success("data.message")}
+            variant="outline"
+          >
             <FcGoogle className="mr-2 text-lg" /> Sign up with Google
           </Button>
           <Button variant="outline">

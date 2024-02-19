@@ -15,15 +15,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useForm, SubmitHandler } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { days, months, years } from "@/lib/constant";
 import { ICreateAccountStep } from "./authTypes";
+import { useCheckUserExist, useCreateUserMutation } from "@/services/auth";
+import { toast } from "react-toastify";
 
 interface IProps {
   openCreateAccount: boolean;
   toggleCreateAccountDialog: (open: boolean) => void;
 }
+
+type Inputs = {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+};
+
+type InputsEmail = {
+  name: string;
+  email: string;
+};
 
 function CreateAccount({
   openCreateAccount,
@@ -32,12 +47,61 @@ function CreateAccount({
   const [step, setStep] = useState<ICreateAccountStep>("email");
   const [isEmail, setIsEmail] = useState<boolean>(true);
 
+  const createUserMutation = useCreateUserMutation();
+  const checkUserMutation = useCheckUserExist();
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setError,
+    formState: { errors },
+  } = useForm<Inputs>();
+
+  const onSubmitEmail: SubmitHandler<InputsEmail> = (data) => {
+    checkUserMutation.mutate(
+      { ...data, isEmail },
+      {
+        onSuccess() {
+          stepHandler("password");
+        },
+        onError(error) {
+          setError("email", { message: error.response?.data?.message });
+        },
+      },
+    );
+  };
+
+  const onSubmit: SubmitHandler<Inputs> = (data) => {
+    createUserMutation.mutate(data, {
+      onSuccess(data) {
+        if (data.status === "success") {
+          toast.success(data.message);
+        }
+      },
+      onError(error) {
+        setError("password", { message: error.response?.data.message });
+        setError("confirmPassword", { message: error.response?.data.message });
+      },
+    });
+  };
+
+  function stepHandler(step: ICreateAccountStep) {
+    setStep(step);
+  }
+
   function toggleIsEmail() {
     setIsEmail(!isEmail);
   }
 
   return (
-    <Dialog open={openCreateAccount} onOpenChange={toggleCreateAccountDialog}>
+    <Dialog
+      open={openCreateAccount}
+      onOpenChange={(e) => {
+        toggleCreateAccountDialog(e);
+        setStep("email");
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create your account</DialogTitle>
@@ -49,21 +113,38 @@ function CreateAccount({
         </DialogHeader>
 
         {step === "email" && (
-          <div className="mt-3 space-y-4">
-            <Input placeholder="Name" autoComplete="name" />
+          <form
+            onSubmit={handleSubmit(onSubmitEmail)}
+            className="mt-3 space-y-4"
+          >
+            <Input
+              placeholder="Name"
+              {...register("name", { required: true })}
+              variant={errors.name && "error"}
+            />
 
             <div className="flex flex-col">
               {isEmail ? (
-                <Input type="email" placeholder="Email" autoComplete="email" />
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  {...register("email", { required: "Please provide email!" })}
+                  variant={errors.email && "error"}
+                />
               ) : (
-                <Input placeholder="Phone" autoComplete="phone" />
+                <Input placeholder="Phone" type="number" />
               )}
+
+              <p className="mt-1.5 text-sm text-red-500">
+                {errors.email?.message}
+              </p>
 
               <Button
                 onClick={toggleIsEmail}
                 variant="link"
                 size="sm"
                 className="-mr-2.5 ml-auto w-36"
+                type="button"
               >
                 Use {isEmail ? "phone" : "email"} instead
               </Button>
@@ -117,19 +198,44 @@ function CreateAccount({
             </div>
 
             <div className="pt-10">
-              <Button size="lg">Next</Button>
+              <Button isLoading={checkUserMutation.isPending} size="lg">
+                Next
+              </Button>
             </div>
-          </div>
+          </form>
         )}
 
         {step === "password" && (
-          <div className="mt-3">
-            <Input placeholder="Password" />
-            <Input placeholder="Confirm Password" className="mt-7" />
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-3">
+            <Input
+              placeholder="Password"
+              {...register("password", {
+                required: "Please provide password!",
+              })}
+              variant={errors.password && "error"}
+            />
+            <p className="mt-1.5 text-sm text-red-500">
+              {errors.password?.message}
+            </p>
+
+            <Input
+              placeholder="Confirm Password"
+              className="mt-7"
+              {...register("confirmPassword", {
+                required: "Please provide confirm password!",
+              })}
+              variant={errors.confirmPassword && "error"}
+            />
+            <p className="mt-1.5 text-sm text-red-500">
+              {errors.confirmPassword?.message}
+            </p>
+
             <div className="mt-40">
-              <Button size="lg">Next</Button>
+              <Button isLoading={createUserMutation.isPending} size="lg">
+                Sign up
+              </Button>
             </div>
-          </div>
+          </form>
         )}
       </DialogContent>
     </Dialog>
